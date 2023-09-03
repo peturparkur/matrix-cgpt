@@ -4,7 +4,6 @@
 # echo_bot - "example string"
 from asyncio import sleep
 import nio
-import openai
 import simplematrixbotlib as botlib
 from atro_args import InputArgs, Arg
 

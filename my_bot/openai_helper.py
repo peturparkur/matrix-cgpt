@@ -2,7 +2,7 @@ import random
 import string
 from typing import Iterator, Optional
 import openai
-from ai_types import ChatCompletionChoice, ChatCompletionChunk, ChatCompletionChunkChoice, ChatCompletionChunkDelta, ChatCompletionMessage, ChatCompletion, CompletionUsage, Model
+from .ai_types import ChatCompletionChoice, ChatCompletionChunk, ChatCompletionChunkChoice, ChatCompletionChunkDelta, ChatCompletionMessage, ChatCompletion, CompletionUsage, Model
 
 class GPT():
     def __init__(self, TOKEN: str) -> None:

@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "my-bot"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+asyncio = "^3.4.3"
+simplematrixbotlib = "^2.10.0"
+matrix-nio = {extras = ["e2e"], version = "^0.20"}
+openai = "^0.28.0"
+atro-args = "^0.4.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

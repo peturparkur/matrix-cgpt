@@ -101,7 +101,7 @@ class DummyLlm():
     ) -> ChatCompletion | Iterator[ChatCompletionChunk]:
         if stream:
             return self.__dummy_stream(messages, model, max_tokens)
-        received = "\n".join([x['content'] for x in messages])
+        received = "\n".join([f"[{x['role']}]: '''{x['content']}'''" for x in messages])
         return ChatCompletion(
             id = "dummy", 
             object="chat.completion",

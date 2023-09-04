@@ -7,7 +7,7 @@ import nio
 import simplematrixbotlib as botlib
 from atro_args import InputArgs, Arg
 
-from my_bot import openai_helper
+from my_bot import matrix_helper, openai_helper
 from my_bot.ai_types import ChatCompletion, ChatCompletionMessage
 
 input_args = InputArgs(
@@ -29,59 +29,102 @@ PREFIX = '!'
 llm = openai_helper.DummyLlm(args["CGPT_TOKEN"])
 
 @bot.listener.on_message_event
-async def echo(room: nio.rooms.MatrixRoom, message: nio.RoomMessageText):
-    print(f"on_message [{room}] -> {message}")
-    if(message.sender == creds.username): return # self detection
-    match = botlib.MessageMatch(room, message, bot, PREFIX)
+async def cmd_exit(room: nio.rooms.MatrixRoom, message: nio.RoomMessageText):
+    if(message.sender == creds.username): return
+    if(message.body.startswith("!exit")):
+        await bot.api.send_text_message(room.room_id, "Exiting...")
+        exit()
 
-    await bot.api.async_client.room_typing(room.room_id)
-    print("sleeping for 3 seconds")
-    await sleep(3)
-    # await bot.api._send_room(
-    #     room.room_id, 
-    #     {
-    #     "body": "thinks this emote",
-    #     "format": "org.matrix.custom.html",
-    #     "formatted_body": "thinks <b>this</b> is an example emote",
-    #     "msgtype": "m.emote"
-    #     }
-    # )
-    print("sleeping done 3 seconds")
-    history: nio.RoomMessagesResponse | nio.RoomMessagesError = await bot.api.async_client.room_messages(
-        room.room_id, 
-        start="", 
-        limit=10, 
-        direction=nio.MessageDirection.back
+def cli_help(bot: botlib.Bot, room: nio.rooms.MatrixRoom):
+    return bot.api.send_text_message(
+        room.room_id,
+        """
+    Commands:
+    !exit - exits the program
+    !cgpt - runs the cgpt command
+    !help - shows this help message
+        """
     )
-    if not isinstance(history, nio.RoomMessagesError):
-        for x in history.chunk: print(x)
-
-    if match.is_not_from_this_bot() and match.prefix() and match.command("echo"):
-        await bot.api.send_text_message(
-            room.room_id, " ".join(arg for arg in match.args())
-        )
-    await bot.api.async_client.room_typing(room.room_id, False)
 
 @bot.listener.on_message_event
-async def cgpt(room: nio.rooms.MatrixRoom, message: nio.RoomMessageText):
-    print(f"on_message [{room}] -> {message}")
-    if(message.sender == creds.username): return # self detection
-    match = botlib.MessageMatch(room, message, bot, PREFIX)
+async def cmd_help(room: nio.rooms.MatrixRoom, message: nio.RoomMessageText):
+    if(message.sender == creds.username): return
+    if(message.body.startswith("!help")):
+        await cli_help(bot, room)
 
-    await bot.api.async_client.room_typing(room.room_id)
-    if match.is_not_from_this_bot() and match.prefix() and match.command("cgpt"):
-        completion: ChatCompletion = llm.create_chat_completion(
-            [
-                ChatCompletionMessage(
-                    role="user",
-                    content = message.body
-                )
-            ]
+def clean_message(message: str) -> str:
+    if not message.startswith("!cgpt"): return message
+    return " ".join(message.split(" ")[2:])
+
+async def cli_message(bot: botlib.Bot, room: nio.rooms.MatrixRoom, args: list[str]):
+    await bot.api.async_client.room_typing(room.room_id) # start typing indicator
+
+    history: list[ChatCompletionMessage] = []
+    async for x in matrix_helper.recursive_message(bot, room, 10, 10):
+        if x[0] is not None: break
+        if not isinstance(x[1], nio.RoomMessageText): continue
+        if x[1].sender == creds.username:
+            history.append(ChatCompletionMessage(role="assistant", content=clean_message(x[1].body)))
+            continue
+        if not x[1].body.startswith("!cgpt"): continue
+
+        __args = x[1].body.split(" ")
+        if __args[0] == "clear": break
+        if not __args[0] == "message": continue
+        
+        history.append(ChatCompletionMessage(role="user", content=clean_message(x[1].body)))
+
+    completion: ChatCompletion = llm.create_chat_completion(
+            history
         ) # type: ignore
-        print(completion)
-        await bot.api.send_text_message(
+    await bot.api.send_text_message(
             room.room_id, completion["choices"][0]["message"]["content"]
         )
-    await bot.api.async_client.room_typing(room.room_id, False)
+    await bot.api.async_client.room_typing(room.room_id, False) # start typing indicator
+
+@bot.listener.on_message_event
+async def cmd_completion(room: nio.rooms.MatrixRoom, message: nio.RoomMessageText):
+    if(message.sender == creds.username): return
+    if(not message.body.startswith("!cgpt")): return
+
+    # check for commands
+    args = message.body.split(" ")[1:]
+    if(len(args) == 0):
+        await cli_help(bot, room)
+        return
+    match args[0]:
+        case "help":
+            return await cli_help(bot, room)
+        case "exit":
+            await bot.api.send_text_message(room.room_id, "Exiting...")
+            exit()
+        case "message":
+            return await cli_message(bot, room, args[2:])
+        case _:
+            return
+
+# @bot.listener.on_message_event
+# async def cgpt(room: nio.rooms.MatrixRoom, message: nio.RoomMessageText):
+#     print(f"on_message [{room}] -> {message}")
+#     if(message.sender == creds.username): return # self detection
+#     match = botlib.MessageMatch(room, message, bot, PREFIX)
+
+#     await bot.api.async_client.room_typing(room.room_id)
+#     if match.is_not_from_this_bot() and match.prefix() and match.command("cgpt"):
+#         completion: ChatCompletion = llm.create_chat_completion(
+#             [
+#                 ChatCompletionMessage(
+#                     role="user",
+#                     content = message.body
+#                 )
+#             ]
+#         ) # type: ignore
+#         if message.body.split(" ")[1:][0] == "exit":
+#             exit()
+#         print(completion)
+#         await bot.api.send_text_message(
+#             room.room_id, completion["choices"][0]["message"]["content"]
+#         )
+#     await bot.api.async_client.room_typing(room.room_id, False)
 
 bot.run()

@@ -12,6 +12,7 @@ simplematrixbotlib = "^2.10.0"
 matrix-nio = {extras = ["e2e"], version = "^0.20"}
 openai = "^0.28.0"
 atro-args = "^0.4.1"
+aiohttp = "^3.8.5"
 
 
 [build-system]

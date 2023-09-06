@@ -1,12 +1,18 @@
+import asyncio
+import json
 import random
 import string
 from typing import Iterator, Optional
 import openai
+import aiohttp
+import requests
 from .ai_types import ChatCompletionChoice, ChatCompletionChunk, ChatCompletionChunkChoice, ChatCompletionChunkDelta, ChatCompletionMessage, ChatCompletion, CompletionUsage, Model
 
 class GPT():
-    def __init__(self, TOKEN: str) -> None:
+    def __init__(self, TOKEN: str, url: Optional[str] = None) -> None:
         openai.api_key = TOKEN
+        if url is not None:
+            openai.api_base = url
 
     def create_chat_completion(
         self,
@@ -31,6 +37,49 @@ class GPT():
             n = n,
             stream = stream
         ) # type: ignore
+
+class LocalLlama():
+    def __init__(self, TOKEN: str, url: str = "http://localhost:8000") -> None:
+        self.url = url
+        res = requests.get(self.url + "/docs")
+        print(res)
+
+    async def acreate_chat_completion(
+        self,
+        messages: list[ChatCompletionMessage],
+        model: str = "gpt-3.5-turbo",
+        temperature: float = 0.9, 
+        max_tokens: int = -1, 
+        top_p: float = 1, 
+        frequency_penalty: float = 0, 
+        presence_penalty: float = 0,
+        n: int = 1,
+        stream: bool = False
+    ) -> ChatCompletion:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                self.url + "/v1/chat/completions",
+                json={
+                    "messages": messages,
+                    "max_tokens": max(max_tokens, 2048),
+                }
+            ) as resp:
+                return await resp.json()
+    
+    # Chat completion using the acreate_chat_completion method
+    def create_chat_completion(
+        self,
+        messages: list[ChatCompletionMessage],
+        model: str = "gpt-3.5-turbo",
+        temperature: float = 0.9, 
+        max_tokens: int = -1, 
+        top_p: float = 1, 
+        frequency_penalty: float = 0, 
+        presence_penalty: float = 0,
+        n: int = 1,
+        stream: bool = False
+    ) -> ChatCompletion:
+        return asyncio.get_event_loop().run_until_complete(asyncio.create_task(self.acreate_chat_completion(messages)))
 
 class DummyLlm():
     def __init__(self, TOKEN: str) -> None:

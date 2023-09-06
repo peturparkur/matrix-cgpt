@@ -3,11 +3,13 @@
 # randomuser - "!echo example string"
 # echo_bot - "example string"
 from asyncio import sleep
+import asyncio
 import nio
 import simplematrixbotlib as botlib
 from atro_args import InputArgs, Arg
 
 from my_bot import matrix_helper, openai_helper
+from my_bot import ai_types
 from my_bot.ai_types import ChatCompletion, ChatCompletionMessage
 
 input_args = InputArgs(
@@ -26,7 +28,7 @@ home_url: str = args["HOME"]
 creds = botlib.Creds(home_url, args["USERNAME"], args["PASSWORD"], session_stored_file=args["CREDPATH"])
 bot = botlib.Bot(creds)
 PREFIX = '!'
-llm = openai_helper.DummyLlm(args["CGPT_TOKEN"])
+llm: ai_types.AsyncOpenLlm = openai_helper.LocalLlama(args["CGPT_TOKEN"], "http://localhost:8000")
 
 @bot.listener.on_message_event
 async def cmd_exit(room: nio.rooms.MatrixRoom, message: nio.RoomMessageText):
@@ -67,16 +69,19 @@ async def cli_message(bot: botlib.Bot, room: nio.rooms.MatrixRoom, args: list[st
             history.append(ChatCompletionMessage(role="assistant", content=clean_message(x[1].body)))
             continue
         if not x[1].body.startswith("!cgpt"): continue
-
-        __args = x[1].body.split(" ")
+        __args = x[1].body.split(" ")[1:]
         if __args[0] == "clear": break
         if not __args[0] == "message": continue
-        
         history.append(ChatCompletionMessage(role="user", content=clean_message(x[1].body)))
+    history.reverse()
 
-    completion: ChatCompletion = llm.create_chat_completion(
+    completion: ChatCompletion = await llm.acreate_chat_completion(
             history
         ) # type: ignore
+
+    # completion: ChatCompletion = llm.create_chat_completion(
+    #         history
+    #     ) # type: ignore
     await bot.api.send_text_message(
             room.room_id, completion["choices"][0]["message"]["content"]
         )
@@ -103,28 +108,6 @@ async def cmd_completion(room: nio.rooms.MatrixRoom, message: nio.RoomMessageTex
         case _:
             return
 
-# @bot.listener.on_message_event
-# async def cgpt(room: nio.rooms.MatrixRoom, message: nio.RoomMessageText):
-#     print(f"on_message [{room}] -> {message}")
-#     if(message.sender == creds.username): return # self detection
-#     match = botlib.MessageMatch(room, message, bot, PREFIX)
-
-#     await bot.api.async_client.room_typing(room.room_id)
-#     if match.is_not_from_this_bot() and match.prefix() and match.command("cgpt"):
-#         completion: ChatCompletion = llm.create_chat_completion(
-#             [
-#                 ChatCompletionMessage(
-#                     role="user",
-#                     content = message.body
-#                 )
-#             ]
-#         ) # type: ignore
-#         if message.body.split(" ")[1:][0] == "exit":
-#             exit()
-#         print(completion)
-#         await bot.api.send_text_message(
-#             room.room_id, completion["choices"][0]["message"]["content"]
-#         )
-#     await bot.api.async_client.room_typing(room.room_id, False)
-
-bot.run()
+loop = asyncio.get_event_loop()
+loop.run_until_complete(bot.main())
+# bot.run()

@@ -34,7 +34,7 @@ home_url: str = input_args_parsed["HOME"]
 creds = botlib.Creds(home_url, input_args_parsed["USERNAME"], input_args_parsed["PASSWORD"], session_stored_file=input_args_parsed["CREDPATH"])
 bot = botlib.Bot(creds)
 PREFIX = '!'
-llm: ai_types.AsyncOpenLlm = openai_helper.LocalLlama(input_args_parsed["CGPT_TOKEN"], "http://192.168.0.28:8000")
+llm: ai_types.AsyncOpenLlm = openai_helper.LocalLlama(input_args_parsed["CGPT_TOKEN"], "http://localhost:8000")
 
 @dataclass
 class CgptArgs:

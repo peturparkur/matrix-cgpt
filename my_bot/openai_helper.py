@@ -41,8 +41,12 @@ class GPT():
 class LocalLlama():
     def __init__(self, TOKEN: str, url: str = "http://localhost:8000") -> None:
         self.url = url
-        res = requests.get(self.url + "/docs")
-        print(res)
+        try:
+            res = requests.get(self.url + "/docs")
+            print(res)
+        except Exception as e:
+            print("Failed to connect to local llama server")
+            print(e)
 
     async def acreate_chat_completion(
         self,

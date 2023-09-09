@@ -25,6 +25,8 @@ input_args = InputArgs(
         Arg(name = "USERNAME"),
         Arg(name = "PASSWORD"),
         Arg(name = "CGPT_TOKEN"),
+        Arg(name = "PREFIX", required = False, default = "!"),
+        Arg(name = "LLM_URL", required = False, default = "http://localhost:8000"),
         Arg(name = "CREDPATH", required = False, default = "./secrets/session.txt"),
     ]
 )
@@ -33,7 +35,7 @@ input_args_parsed = input_args.get_dict()
 home_url: str = input_args_parsed["HOME"]
 creds = botlib.Creds(home_url, input_args_parsed["USERNAME"], input_args_parsed["PASSWORD"], session_stored_file=input_args_parsed["CREDPATH"])
 bot = botlib.Bot(creds)
-PREFIX = '!'
+PREFIX: str = input_args_parsed["PREFIX"]
 llm: ai_types.AsyncOpenLlm = openai_helper.LocalLlama(input_args_parsed["CGPT_TOKEN"], "http://localhost:8000")
 
 @dataclass
